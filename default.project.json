@@ -1,0 +1,55 @@
+{
+  "name": "RobloxGameFundamental",
+  "tree": {
+    "$className": "DataModel",
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "RemoteSetup": {
+        "$path": "src/ServerScriptService/RemoteSetup.server.lua"
+      },
+      "DataManager": {
+        "$path": "src/ServerScriptService/DataManager.server.lua"
+      },
+      "RoundManager": {
+        "$path": "src/ServerScriptService/RoundManager.server.lua"
+      }
+    },
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "GameConfig": {
+        "$path": "src/ReplicatedStorage/GameConfig.lua"
+      },
+      "Modules": {
+        "$className": "Folder",
+        "GameState": {
+          "$path": "src/ReplicatedStorage/Modules/GameState.lua"
+        },
+        "Signal": {
+          "$path": "src/ReplicatedStorage/Modules/Signal.lua"
+        }
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "PlayerController": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/PlayerController.client.lua"
+        }
+      }
+    },
+
+    "StarterGui": {
+      "$className": "StarterGui",
+      "MainGui": {
+        "$className": "Folder",
+        "UIController": {
+          "$path": "src/StarterGui/MainGui/UIController.client.lua"
+        }
+      }
+    }
+  }
+}
