@@ -1,5 +1,5 @@
 {
-  "name": "RobloxGameFundamental",
+  "name": "MythicPetsEmpire",
   "tree": {
     "$className": "DataModel",
 
@@ -8,11 +8,23 @@
       "RemoteSetup": {
         "$path": "src/ServerScriptService/RemoteSetup.server.lua"
       },
-      "DataManager": {
-        "$path": "src/ServerScriptService/DataManager.server.lua"
+      "Main": {
+        "$path": "src/ServerScriptService/Main.server.lua"
       },
-      "RoundManager": {
-        "$path": "src/ServerScriptService/RoundManager.server.lua"
+      "Services": {
+        "$className": "Folder",
+        "DataService": {
+          "$path": "src/ServerScriptService/Services/DataService.lua"
+        },
+        "PetService": {
+          "$path": "src/ServerScriptService/Services/PetService.lua"
+        },
+        "TerritoryService": {
+          "$path": "src/ServerScriptService/Services/TerritoryService.lua"
+        },
+        "EconomyService": {
+          "$path": "src/ServerScriptService/Services/EconomyService.lua"
+        }
       }
     },
 
@@ -28,6 +40,15 @@
         },
         "Signal": {
           "$path": "src/ReplicatedStorage/Modules/Signal.lua"
+        },
+        "PetData": {
+          "$path": "src/ReplicatedStorage/Modules/PetData.lua"
+        },
+        "EggData": {
+          "$path": "src/ReplicatedStorage/Modules/EggData.lua"
+        },
+        "TerritoryData": {
+          "$path": "src/ReplicatedStorage/Modules/TerritoryData.lua"
         }
       }
     },
@@ -38,16 +59,37 @@
         "$className": "StarterPlayerScripts",
         "PlayerController": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/PlayerController.client.lua"
+        },
+        "PetFollowController": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/PetFollowController.client.lua"
         }
       }
     },
 
     "StarterGui": {
       "$className": "StarterGui",
-      "MainGui": {
+      "MainHud": {
         "$className": "Folder",
-        "UIController": {
-          "$path": "src/StarterGui/MainGui/UIController.client.lua"
+        "MainHudController": {
+          "$path": "src/StarterGui/MainHud/MainHudController.client.lua"
+        }
+      },
+      "EggShop": {
+        "$className": "Folder",
+        "EggShopController": {
+          "$path": "src/StarterGui/EggShop/EggShopController.client.lua"
+        }
+      },
+      "Inventory": {
+        "$className": "Folder",
+        "InventoryController": {
+          "$path": "src/StarterGui/Inventory/InventoryController.client.lua"
+        }
+      },
+      "TradingPost": {
+        "$className": "Folder",
+        "TradingController": {
+          "$path": "src/StarterGui/TradingPost/TradingController.client.lua"
         }
       }
     }

@@ -1,57 +1,51 @@
--- Applies per-player settings and reacts to server state changes on the client
+-- Applies character stats and sends territory zone events to server
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService        = game:GetService("RunService")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
-local GameState  = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("GameState"))
-local remotes    = ReplicatedStorage:WaitForChild("Remotes")
+local GameConfig    = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local TerritoryData = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("TerritoryData"))
 
+local remotes     = ReplicatedStorage:WaitForChild("Remotes")
 local localPlayer = Players.LocalPlayer
 
--- Apply consistent character stats whenever the character spawns
-local function applyCharacterStats(character)
+local currentZone = nil  -- territory id the player is currently inside
+
+local function applyStats(character)
 	local humanoid = character:WaitForChild("Humanoid")
 	humanoid.WalkSpeed = GameConfig.WALK_SPEED
 	humanoid.JumpPower = GameConfig.JUMP_POWER
 end
 
-localPlayer.CharacterAdded:Connect(applyCharacterStats)
-if localPlayer.Character then
-	applyCharacterStats(localPlayer.Character)
-end
+localPlayer.CharacterAdded:Connect(applyStats)
+if localPlayer.Character then applyStats(localPlayer.Character) end
 
--- React to game-state changes (e.g. hide/show UI elements)
-remotes.StateChanged.OnClientEvent:Connect(function(state)
-	-- UI controller listens to this too; nothing extra needed here
-	-- unless you want character-level effects per state.
-	if state == GameState.IN_ROUND then
-		-- Example: enable sprint, abilities, etc.
-	elseif state == GameState.LOBBY then
-		-- Example: disable combat tools
+-- ── Territory proximity check (every 0.5 s) ──────────────────────────────────
+RunService.Heartbeat:Connect(function()
+	local character = localPlayer.Character
+	if not character then return end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local pos    = root.Position
+	local inZone = nil
+
+	for id, tdata in pairs(TerritoryData.Territories) do
+		local center = tdata.position
+		local dist   = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude
+		if dist <= tdata.radius then
+			inZone = id
+			break
+		end
+	end
+
+	if inZone ~= currentZone then
+		if currentZone then
+			remotes.LeaveZone:FireServer(currentZone)
+		end
+		currentZone = inZone
+		if currentZone then
+			remotes.EnterZone:FireServer(currentZone)
+		end
 	end
 end)
-
--- Receive and cache the latest player data
-local playerData = {}
-
-remotes.PlayerDataUpdate.OnClientEvent:Connect(function(data)
-	for k, v in pairs(data) do
-		playerData[k] = v
-	end
-end)
-
--- Fetch initial data from server
-local ok, data = pcall(function()
-	return remotes.RequestPlayerData:InvokeServer()
-end)
-if ok and data then
-	for k, v in pairs(data) do
-		playerData[k] = v
-	end
-end
-
--- Expose data for UI scripts via a shared value
-local dataValue = Instance.new("StringValue")
-dataValue.Name  = "PlayerDataCache"
-dataValue.Value = game:GetService("HttpService"):JSONEncode(playerData)
-dataValue.Parent = localPlayer
