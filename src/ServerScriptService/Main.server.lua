@@ -1,43 +1,63 @@
--- Entry point: waits for Remotes, then initialises all services and starts ticks
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players           = game:GetService("Players")
 
--- Wait for RemoteSetup to finish
 ReplicatedStorage:WaitForChild("Remotes")
 
 local DataService      = require(script.Parent.Services.DataService)
 local PetService       = require(script.Parent.Services.PetService)
 local TerritoryService = require(script.Parent.Services.TerritoryService)
 local EconomyService   = require(script.Parent.Services.EconomyService)
-local GameConfig       = require(ReplicatedStorage.GameConfig)
+local RebirthService   = require(script.Parent.Services.RebirthService)
+local QuestService     = require(script.Parent.Services.QuestService)
+local BossService      = require(script.Parent.Services.BossService)
+local DailySpinService = require(script.Parent.Services.DailySpinService)
 
--- Inject DataService dependency into other services
-PetService.Init(DataService)
+local GameConfig = require(ReplicatedStorage.GameConfig)
+
+-- Initialise with dependency injection
+PetService.Init(DataService, DailySpinService, QuestService, RebirthService)
 TerritoryService.Init(DataService)
 EconomyService.Init(DataService)
+RebirthService.Init(DataService)
+QuestService.Init(DataService)
+BossService.Init(DataService)
+DailySpinService.Init(DataService)
 
--- Send initial state to each player when they fully load
+-- Wire territory quest stat
+local origTerritoryService = TerritoryService
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+-- Hook territory capture event to advance quest
+remotes.TerritoryUpdated  -- already broadcasts; quest advance done inside TerritoryService
+-- (Patch TerritoryService to call QuestService.Advance after capture)
+-- We do a lightweight override by monitoring the remote on server side:
+remotes.BossUpdate  -- similarly driven inside BossService
+
+-- Push initial state to each player
 local function onPlayerAdded(player)
-	-- DataService already loaded their data via Players.PlayerAdded
-	-- Wait for character then push initial values
 	player.CharacterAdded:Connect(function()
-		task.wait(1) -- let client scripts initialise
+		task.wait(1.5)
 		local data = DataService.Get(player)
 		if not data then return end
-
-		local remotes = ReplicatedStorage:WaitForChild("Remotes")
 		remotes.CoinUpdate:FireClient(player, data.coins)
 		remotes.GemUpdate:FireClient(player, data.gems)
 		remotes.EquippedUpdated:FireClient(player, data.equipped)
+		remotes.LuckTokenUpdate:FireClient(player, data.luckTokens or 0)
+		remotes.RebirthUpdate:FireClient(player, {
+			rebirth    = data.rebirth or 0,
+			multiplier = data.rebirthMultiplier or 1,
+			nextCost   = RebirthService.GetCost(player),
+		})
+		if (data.activeLuckUntil or 0) > os.time() then
+			remotes.LuckAuraUpdate:FireClient(player, { active = true, expiresAt = data.activeLuckUntil })
+		end
 	end)
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
-	onPlayerAdded(player)
-end
+for _, player in ipairs(Players:GetPlayers()) do onPlayerAdded(player) end
 Players.PlayerAdded:Connect(onPlayerAdded)
 
--- ── Coin tick (every COIN_TICK_INTERVAL seconds) ──────────────────────────────
+-- Coin tick
 task.spawn(function()
 	while true do
 		task.wait(GameConfig.COIN_TICK_INTERVAL)
@@ -47,7 +67,7 @@ task.spawn(function()
 	end
 end)
 
--- ── Territory bonus tick ──────────────────────────────────────────────────────
+-- Territory bonus tick
 task.spawn(function()
 	while true do
 		task.wait(GameConfig.TERRITORY_TICK_INTERVAL)
@@ -55,4 +75,4 @@ task.spawn(function()
 	end
 end)
 
-print("[MythicPets] Server initialised successfully.")
+print("[MythicPets] Server fully initialised.")

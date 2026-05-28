@@ -1,19 +1,38 @@
--- Handles DataStore persistence and in-memory session data
-local Players          = game:GetService("Players")
-local DataStoreService = game:GetService("DataStoreService")
+local Players           = game:GetService("Players")
+local DataStoreService  = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
 
-local store        = DataStoreService:GetDataStore("MythicPets_v1")
-local sessionData  = {}  -- [userId] = data
+local store       = DataStoreService:GetDataStore("MythicPets_v2")
+local sessionData = {}
 
 local DEFAULT = {
-	coins    = GameConfig.STARTING_COINS,
-	gems     = GameConfig.STARTING_GEMS,
-	pets     = {},   -- array of { uid, petId, level, xp }
-	equipped = {},   -- array of uids (max 3)
-	stats    = { eggsOpened = 0, fusionsDone = 0, petsOwned = 0 },
+	coins              = GameConfig.STARTING_COINS,
+	gems               = GameConfig.STARTING_GEMS,
+	pets               = {},
+	equipped           = {},
+	-- Rebirth
+	rebirth            = 0,
+	rebirthMultiplier  = 1,
+	-- Daily spin
+	lastDailySpin      = 0,
+	luckTokens         = 0,
+	activeLuckUntil    = 0,
+	-- Quests
+	questDay           = 0,
+	quests             = {},
+	-- Stats (used for quests + achievements)
+	stats = {
+		eggsOpened         = 0,
+		fusionsDone        = 0,
+		petsOwned          = 0,
+		petsSold           = 0,
+		coinsFromPets      = 0,
+		territoriesCaptured = 0,
+		tradeBuys          = 0,
+		bossKills          = 0,
+	},
 }
 
 local function deepCopy(t)
@@ -28,6 +47,11 @@ local function mergeDefaults(data)
 	for k, v in pairs(DEFAULT) do
 		if data[k] == nil then
 			data[k] = type(v) == "table" and deepCopy(v) or v
+		end
+	end
+	if data.stats then
+		for k, v in pairs(DEFAULT.stats) do
+			if data.stats[k] == nil then data.stats[k] = v end
 		end
 	end
 	return data
@@ -49,8 +73,9 @@ end
 function DataService.Save(player)
 	local data = sessionData[player.UserId]
 	if not data then return end
-	local key = tostring(player.UserId)
-	local ok, err = pcall(function() store:SetAsync(key, data) end)
+	local ok, err = pcall(function()
+		store:SetAsync(tostring(player.UserId), data)
+	end)
 	if not ok then warn("[DataService] Save error:", err) end
 end
 
@@ -62,7 +87,6 @@ function DataService.AdjustCoins(player, amount)
 	local data = sessionData[player.UserId]
 	if not data then return end
 	data.coins = math.max(0, data.coins + amount)
-
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	remotes.CoinUpdate:FireClient(player, data.coins)
 end
@@ -71,14 +95,13 @@ function DataService.AdjustGems(player, amount)
 	local data = sessionData[player.UserId]
 	if not data then return end
 	data.gems = math.max(0, data.gems + amount)
-
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	remotes.GemUpdate:FireClient(player, data.gems)
 end
 
 function DataService.AddPet(player, petEntry)
 	local data = sessionData[player.UserId]
-	if not data then return end
+	if not data then return false end
 	if #data.pets >= GameConfig.MAX_INVENTORY_SIZE then return false end
 	table.insert(data.pets, petEntry)
 	data.stats.petsOwned += 1
@@ -91,7 +114,6 @@ function DataService.RemovePet(player, uid)
 	for i, entry in ipairs(data.pets) do
 		if entry.uid == uid then
 			table.remove(data.pets, i)
-			-- also unequip if equipped
 			for j, eu in ipairs(data.equipped) do
 				if eu == uid then table.remove(data.equipped, j) break end
 			end
@@ -110,7 +132,6 @@ function DataService.FindPet(player, uid)
 	return nil
 end
 
--- Wire lifecycle
 Players.PlayerAdded:Connect(function(player)
 	DataService.Load(player)
 end)

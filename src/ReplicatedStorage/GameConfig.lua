@@ -6,24 +6,41 @@ local GameConfig = {
 	-- Pet system
 	MAX_EQUIPPED_PETS      = 3,
 	MAX_INVENTORY_SIZE     = 100,
-	FUSION_REQUIRED        = 3,   -- 3 identical pets needed to fuse
+	FUSION_REQUIRED        = 3,
 
-	-- Coin generation (server tick every N seconds)
+	-- Shiny pets (trending: rare jackpot variant)
+	SHINY_BASE_CHANCE      = 1,    -- 1 in 100 base
+	SHINY_LUCK_CHANCE      = 5,    -- 1 in 20 when luck token active
+	SHINY_COIN_MULTIPLIER  = 3,    -- shiny pets earn 3× coins
+
+	-- Coin generation
 	COIN_TICK_INTERVAL     = 10,
 
+	-- Rebirth / Prestige
+	REBIRTH_BASE_COST      = 50_000,   -- coins needed for first rebirth
+	REBIRTH_COST_SCALE     = 1.8,      -- cost × 1.8 per rebirth level
+	REBIRTH_COIN_BONUS     = 0.25,     -- +25% coin rate per rebirth level
+
+	-- Daily Spin
+	DAILY_SPIN_COOLDOWN    = 86_400,   -- 24 hours in seconds
+
+	-- Lucky Token
+	LUCK_TOKEN_DURATION    = 300,      -- 5 minutes of boosted shiny chance
+
 	-- Territory
-	TERRITORY_TICK_INTERVAL = 60, -- bonus coins every 60 s
-	MAX_CLAN_TERRITORIES   = 2,
+	TERRITORY_TICK_INTERVAL = 60,
+
+	-- World Boss
+	BOSS_DAMAGE_TICK       = 2,        -- seconds between auto-damage ticks when attacking
 
 	-- Trading
 	MAX_ACTIVE_LISTINGS    = 5,
-	TRADE_TAX_PERCENT      = 5,   -- 5% marketplace fee
+	TRADE_TAX_PERCENT      = 5,
 
 	-- Character
 	WALK_SPEED             = 16,
 	JUMP_POWER             = 50,
 
-	-- Rarity sell-value multipliers (base × multiplier)
 	RARITY_SELL_VALUES = {
 		Common    = 25,
 		Uncommon  = 100,

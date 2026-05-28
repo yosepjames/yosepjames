@@ -1,14 +1,16 @@
--- Handles egg opening, pet fusion, equipping, and selling
+-- Egg opening (with shiny rolls), fusion, equip, sell
 local HttpService       = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local GameConfig    = require(ReplicatedStorage:WaitForChild("GameConfig"))
-local PetData       = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("PetData"))
-local EggData       = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EggData"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local PetData    = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("PetData"))
+local EggData    = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EggData"))
 
-local DataService   -- injected on init to avoid circular require
-
-local remotes       = ReplicatedStorage:WaitForChild("Remotes")
+local remotes    = ReplicatedStorage:WaitForChild("Remotes")
+local DataService     -- injected
+local DailySpinService -- injected (for luck check)
+local QuestService    -- injected
+local RebirthService  -- injected
 
 local PetService = {}
 
@@ -16,15 +18,20 @@ local function newUID()
 	return HttpService:GenerateGUID(false)
 end
 
-local function makeEntry(petId)
-	return { uid = newUID(), petId = petId, level = 1, xp = 0 }
+local function makeEntry(petId, shiny)
+	return { uid = newUID(), petId = petId, level = 1, xp = 0, shiny = shiny or false }
 end
 
 local function notify(player, text, color)
-	remotes.Notification:FireClient(player, {
-		text  = text,
-		color = color or Color3.new(1, 1, 1),
-	})
+	remotes.Notification:FireClient(player, { text = text, color = color or Color3.new(1,1,1) })
+end
+
+local function rollShiny(player)
+	local chance = GameConfig.SHINY_BASE_CHANCE
+	if DailySpinService and DailySpinService.HasActiveLuck(player) then
+		chance = GameConfig.SHINY_LUCK_CHANCE
+	end
+	return math.random(1, 100) <= chance
 end
 
 -- ── Egg Opening ───────────────────────────────────────────────────────────────
@@ -36,44 +43,44 @@ local function handleOpenEgg(player, eggId)
 	local data = DataService.Get(player)
 	if not data then return false end
 
-	-- Deduct cost
 	if egg.costType == "coins" then
 		if data.coins < egg.cost then
-			notify(player, "Not enough coins!", Color3.fromRGB(255, 80, 80))
+			notify(player, "Not enough coins!", Color3.fromRGB(255,80,80))
 			return false
 		end
 		DataService.AdjustCoins(player, -egg.cost)
 	elseif egg.costType == "gems" then
 		if data.gems < egg.cost then
-			notify(player, "Not enough gems!", Color3.fromRGB(255, 80, 80))
+			notify(player, "Not enough gems!", Color3.fromRGB(255,80,80))
 			return false
 		end
 		DataService.AdjustGems(player, -egg.cost)
 	end
 
-	-- Roll for pet
 	local petId = EggData.Roll(eggId)
 	if not petId then return false end
 
-	local petInfo = PetData.GetPet(petId)
-	local entry   = makeEntry(petId)
+	local shiny = rollShiny(player)
+	local entry = makeEntry(petId, shiny)
 
 	local added = DataService.AddPet(player, entry)
 	if not added then
-		notify(player, "Inventory full! Sell some pets first.", Color3.fromRGB(255, 160, 0))
-		-- Refund
+		notify(player, "Inventory full! Sell some pets first.", Color3.fromRGB(255,160,0))
 		if egg.costType == "coins" then DataService.AdjustCoins(player, egg.cost)
 		else DataService.AdjustGems(player, egg.cost) end
 		return false
 	end
 
 	data.stats.eggsOpened += 1
+	if QuestService then QuestService.Advance(player, "eggsOpened", 1) end
+
+	local petInfo = PetData.GetPet(petId)
+	local prefix  = shiny and "✨ SHINY " or ""
+	notify(player,
+		"You got a " .. prefix .. petInfo.rarity .. " " .. petInfo.name .. "!" .. (shiny and " (3× coins!)" or ""),
+		shiny and Color3.fromRGB(255, 215, 0) or PetData.GetRarityColor(petInfo.rarity))
 
 	remotes.PetAdded:FireClient(player, entry)
-	notify(player,
-		"You got a " .. petInfo.rarity .. " " .. petInfo.name .. "!",
-		PetData.GetRarityColor(petInfo.rarity))
-
 	return entry
 end
 
@@ -83,58 +90,57 @@ local function handleFusePets(player, uid1, uid2, uid3)
 	local data = DataService.Get(player)
 	if not data then return false end
 
-	local uids = { uid1, uid2, uid3 }
+	local uids    = { uid1, uid2, uid3 }
 	local entries = {}
 	for _, uid in ipairs(uids) do
 		local e = DataService.FindPet(player, uid)
-		if not e then
-			notify(player, "One or more pets not found.", Color3.fromRGB(255, 80, 80))
-			return false
-		end
+		if not e then notify(player, "Pet not found.", Color3.fromRGB(255,80,80)) return false end
 		table.insert(entries, e)
 	end
 
-	-- All three must share the same petId
 	local basePetId = entries[1].petId
 	for _, e in ipairs(entries) do
 		if e.petId ~= basePetId then
-			notify(player, "All three pets must be the same type!", Color3.fromRGB(255, 80, 80))
+			notify(player, "All 3 pets must be the same type!", Color3.fromRGB(255,80,80))
 			return false
 		end
 	end
 
 	local basePet = PetData.GetPet(basePetId)
 	if not basePet or not basePet.fusionResult then
-		notify(player, "This pet cannot be fused further.", Color3.fromRGB(255, 160, 0))
+		notify(player, "This pet can't fuse further.", Color3.fromRGB(255,160,0))
 		return false
 	end
 
-	-- Remove the three pets
+	-- Shiny: if any input is shiny, result has 50% chance of being shiny
+	local anyShiny = false
+	for _, e in ipairs(entries) do if e.shiny then anyShiny = true break end end
+	local resultShiny = anyShiny and math.random(1,2) == 1
+
 	for _, uid in ipairs(uids) do
 		DataService.RemovePet(player, uid)
 		remotes.PetRemoved:FireClient(player, uid)
 	end
 
-	-- Create result pet
 	local resultId    = basePet.fusionResult
 	local resultPet   = PetData.GetPet(resultId)
-	local resultEntry = makeEntry(resultId)
+	local resultEntry = makeEntry(resultId, resultShiny)
 
 	DataService.AddPet(player, resultEntry)
 	data.stats.fusionsDone += 1
+	if QuestService then QuestService.Advance(player, "fusionsDone", 1) end
+
+	local prefix = resultShiny and "✨ SHINY " or ""
+	notify(player,
+		"Fusion! You got a " .. prefix .. resultPet.rarity .. " " .. resultPet.name .. "!",
+		resultShiny and Color3.fromRGB(255,215,0) or PetData.GetRarityColor(resultPet.rarity))
 
 	remotes.PetAdded:FireClient(player, resultEntry)
-	notify(player,
-		"Fusion success! You got a " .. resultPet.rarity .. " " .. resultPet.name .. "!",
-		PetData.GetRarityColor(resultPet.rarity))
-
-	-- Refresh equipped list (removed pets might have been equipped)
 	remotes.EquippedUpdated:FireClient(player, data.equipped)
-
 	return resultEntry
 end
 
--- ── Sell ──────────────────────────────────────────────────────────────────────
+-- ── Sell ─────────────────────────────────────────────────────────────────────
 
 local function handleSellPet(player, uid)
 	local entry = DataService.FindPet(player, uid)
@@ -142,33 +148,33 @@ local function handleSellPet(player, uid)
 
 	local petInfo = PetData.GetPet(entry.petId)
 	local value   = GameConfig.RARITY_SELL_VALUES[petInfo.rarity] or 25
+	if entry.shiny then value = value * 5 end  -- shiny sells for 5× base
 
 	DataService.RemovePet(player, uid)
 	DataService.AdjustCoins(player, value)
 
-	remotes.PetRemoved:FireClient(player, uid)
 	local data = DataService.Get(player)
-	remotes.EquippedUpdated:FireClient(player, data.equipped)
-	notify(player, "Sold " .. petInfo.name .. " for " .. value .. " coins!")
+	if data then
+		data.stats.petsSold += 1
+		if QuestService then QuestService.Advance(player, "petsSold", 1) end
+	end
+
+	remotes.PetRemoved:FireClient(player, uid)
+	remotes.EquippedUpdated:FireClient(player, data and data.equipped or {})
+	notify(player, "Sold " .. (entry.shiny and "✨ " or "") .. petInfo.name .. " for " .. value .. " coins!")
 end
 
--- ── Equip / Unequip ───────────────────────────────────────────────────────────
+-- ── Equip / Unequip ──────────────────────────────────────────────────────────
 
 local function handleEquipPet(player, uid)
 	local data  = DataService.Get(player)
 	local entry = DataService.FindPet(player, uid)
 	if not entry or not data then return end
-
-	-- Already equipped?
-	for _, eu in ipairs(data.equipped) do
-		if eu == uid then return end
-	end
-
+	for _, eu in ipairs(data.equipped) do if eu == uid then return end end
 	if #data.equipped >= GameConfig.MAX_EQUIPPED_PETS then
-		notify(player, "Equip slot full! Unequip a pet first.", Color3.fromRGB(255, 160, 0))
+		notify(player, "Equip slot full!", Color3.fromRGB(255,160,0))
 		return
 	end
-
 	table.insert(data.equipped, uid)
 	remotes.EquippedUpdated:FireClient(player, data.equipped)
 end
@@ -176,7 +182,6 @@ end
 local function handleUnequipPet(player, uid)
 	local data = DataService.Get(player)
 	if not data then return end
-
 	for i, eu in ipairs(data.equipped) do
 		if eu == uid then
 			table.remove(data.equipped, i)
@@ -186,7 +191,7 @@ local function handleUnequipPet(player, uid)
 	end
 end
 
--- ── Coin tick: equipped pets generate coins ───────────────────────────────────
+-- ── Coin tick with rebirth multiplier ────────────────────────────────────────
 
 function PetService.TickCoins(player)
 	local data = DataService.Get(player)
@@ -194,27 +199,36 @@ function PetService.TickCoins(player)
 
 	local totalPerMin = 0
 	for _, uid in ipairs(data.equipped) do
-		local entry = DataService.FindPet(player, uid)
-		if entry then
-			local pet = PetData.GetPet(entry.petId)
-			if pet then
-				totalPerMin += pet.coinPerMin * entry.level
+		for _, entry in ipairs(data.pets) do
+			if entry.uid == uid then
+				local pet = PetData.GetPet(entry.petId)
+				if pet then
+					local base = pet.coinPerMin * entry.level
+					if entry.shiny then base = base * GameConfig.SHINY_COIN_MULTIPLIER end
+					totalPerMin += base
+				end
+				break
 			end
 		end
 	end
 
-	-- Scale by tick interval (COIN_TICK_INTERVAL seconds out of 60)
-	local GameCfg = require(ReplicatedStorage.GameConfig)
-	local coinsThisTick = math.floor(totalPerMin * GameCfg.COIN_TICK_INTERVAL / 60)
-	if coinsThisTick > 0 then
-		DataService.AdjustCoins(player, coinsThisTick)
+	local raw = math.floor(totalPerMin * GameConfig.COIN_TICK_INTERVAL / 60)
+	local final = RebirthService and RebirthService.ApplyMultiplier(player, raw) or raw
+
+	if final > 0 then
+		DataService.AdjustCoins(player, final)
+		data.stats.coinsFromPets += final
+		if QuestService then QuestService.Advance(player, "coinsFromPets", final) end
 	end
 end
 
--- ── Init ──────────────────────────────────────────────────────────────────────
+-- ── Init ─────────────────────────────────────────────────────────────────────
 
-function PetService.Init(ds)
-	DataService = ds
+function PetService.Init(ds, dss, qs, rs)
+	DataService      = ds
+	DailySpinService = dss
+	QuestService     = qs
+	RebirthService   = rs
 
 	remotes.OpenEgg.OnServerInvoke      = handleOpenEgg
 	remotes.FusePets.OnServerInvoke     = handleFusePets
@@ -230,7 +244,14 @@ function PetService.Init(ds)
 	remotes.GetPlayerData.OnServerInvoke = function(player)
 		local data = DataService.Get(player)
 		if not data then return {} end
-		return { coins = data.coins, gems = data.gems, stats = data.stats, equipped = data.equipped }
+		return {
+			coins       = data.coins,
+			gems        = data.gems,
+			stats       = data.stats,
+			equipped    = data.equipped,
+			luckTokens  = data.luckTokens or 0,
+			rebirth     = data.rebirth or 0,
+		}
 	end
 end
 
