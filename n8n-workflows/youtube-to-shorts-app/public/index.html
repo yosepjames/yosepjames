@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube to Shorts</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+
+    <header class="header">
+      <div class="header-icon">▶</div>
+      <div>
+        <h1>YouTube to Shorts</h1>
+        <p>Ubah video panjang YouTube menjadi beberapa Shorts terjadwal secara otomatis</p>
+      </div>
+      <div id="auth-badge" class="auth-badge loading">Memeriksa...</div>
+    </header>
+
+    <!-- Auth banner -->
+    <div id="auth-banner" class="banner banner-warn hidden">
+      <span>⚠️ Belum terhubung ke YouTube.</span>
+      <a href="/auth" class="btn-link">Hubungkan Akun YouTube →</a>
+    </div>
+    <div id="auth-success-banner" class="banner banner-success hidden">
+      ✅ Berhasil terhubung ke YouTube!
+    </div>
+
+    <!-- Form -->
+    <form id="workflow-form" class="card" autocomplete="off">
+      <h2 class="card-title">Detail Video</h2>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="videoId">YouTube Video ID <span class="required">*</span></label>
+          <input type="text" id="videoId" placeholder="contoh: dQw4w9WgXcQ" required>
+          <small>ID dari URL YouTube setelah <code>?v=</code></small>
+        </div>
+
+        <div class="form-group">
+          <label for="intervalHours">Interval Publikasi (jam) <span class="required">*</span></label>
+          <input type="number" id="intervalHours" min="1" max="720" value="24" required>
+          <small>Jarak waktu antar setiap Short</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="firstPublicationAt">Tanggal Publikasi Pertama <span class="required">*</span></label>
+        <input type="datetime-local" id="firstPublicationAt" required>
+        <small>Waktu publikasi Short pertama (disimpan sebagai private lalu dijadwalkan)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="captionStyling">Caption Styling (JSON, opsional)</label>
+        <textarea id="captionStyling" rows="3"
+          placeholder='{"preset": "bold"}  atau  {"options": {"font": "Arial", "color": "#ffffff"}}'></textarea>
+        <small>Dari Swiftia Playground. Kosongkan untuk menggunakan default.</small>
+      </div>
+
+      <button type="submit" id="submit-btn" class="btn-primary" disabled>
+        <span class="btn-icon">⚡</span> Mulai Proses
+      </button>
+    </form>
+
+    <!-- Progress -->
+    <div id="progress-card" class="card hidden">
+      <h2 class="card-title">Progress</h2>
+
+      <div class="steps-track" id="steps-track">
+        <div class="step" id="step-1">
+          <div class="step-dot"></div>
+          <span>Analisis Video</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-2">
+          <div class="step-dot"></div>
+          <span>Menunggu Hasil</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-3">
+          <div class="step-dot"></div>
+          <span>Proses Shorts</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-4">
+          <div class="step-dot"></div>
+          <span>Selesai</span>
+        </div>
+      </div>
+
+      <div id="progress-bar-wrap" class="hidden">
+        <div class="progress-label">
+          <span id="progress-label-text">Memproses...</span>
+          <span id="progress-count"></span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progress-bar" class="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <div id="log-list" class="log-list"></div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-card" class="card hidden">
+      <h2 class="card-title">Shorts Terjadwal 🎉</h2>
+      <div id="results-list" class="results-list"></div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
