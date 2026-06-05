@@ -8,7 +8,9 @@ local PetData    = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChil
 
 local remotes    = ReplicatedStorage:WaitForChild("Remotes")
 
-local DataService -- injected
+local DataService        -- injected
+local QuestService       -- injected
+local AchievementService -- injected
 
 -- listings[listingId] = { id, sellerId, uid, petId, petEntry, price, sellerName }
 local listings = {}
@@ -124,13 +126,23 @@ local function handleBuyListing(player, listingId)
 	remotes.PetAdded:FireClient(player, l.petEntry)
 	notify(player, "You bought " .. (petInfo and petInfo.name or l.petId) .. " for " .. l.price .. " coins!")
 
+	-- Track quest + achievement stats for buyer
+	local buyerData = DataService.Get(player)
+	if buyerData then
+		buyerData.stats.tradeBuys = (buyerData.stats.tradeBuys or 0) + 1
+	end
+	if QuestService       then QuestService.Advance(player, "tradeBuys", 1) end
+	if AchievementService then AchievementService.Check(player) end
+
 	broadcast()
 end
 
 -- ── Init ─────────────────────────────────────────────────────────────────────
 
-function EconomyService.Init(ds)
-	DataService = ds
+function EconomyService.Init(ds, qs, as)
+	DataService        = ds
+	QuestService       = qs
+	AchievementService = as
 
 	remotes.GetListings.OnServerInvoke = function()
 		return listings

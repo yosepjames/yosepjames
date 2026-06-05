@@ -9,14 +9,17 @@
       "Main":        { "$path": "src/ServerScriptService/Main.server.lua" },
       "Services": {
         "$className": "Folder",
-        "DataService":      { "$path": "src/ServerScriptService/Services/DataService.lua" },
-        "PetService":       { "$path": "src/ServerScriptService/Services/PetService.lua" },
-        "TerritoryService": { "$path": "src/ServerScriptService/Services/TerritoryService.lua" },
-        "EconomyService":   { "$path": "src/ServerScriptService/Services/EconomyService.lua" },
-        "RebirthService":   { "$path": "src/ServerScriptService/Services/RebirthService.lua" },
-        "QuestService":     { "$path": "src/ServerScriptService/Services/QuestService.lua" },
-        "BossService":      { "$path": "src/ServerScriptService/Services/BossService.lua" },
-        "DailySpinService": { "$path": "src/ServerScriptService/Services/DailySpinService.lua" }
+        "DataService":        { "$path": "src/ServerScriptService/Services/DataService.lua" },
+        "GamepassService":    { "$path": "src/ServerScriptService/Services/GamepassService.lua" },
+        "AchievementService": { "$path": "src/ServerScriptService/Services/AchievementService.lua" },
+        "RebirthService":     { "$path": "src/ServerScriptService/Services/RebirthService.lua" },
+        "QuestService":       { "$path": "src/ServerScriptService/Services/QuestService.lua" },
+        "DailySpinService":   { "$path": "src/ServerScriptService/Services/DailySpinService.lua" },
+        "PetService":         { "$path": "src/ServerScriptService/Services/PetService.lua" },
+        "TerritoryService":   { "$path": "src/ServerScriptService/Services/TerritoryService.lua" },
+        "EconomyService":     { "$path": "src/ServerScriptService/Services/EconomyService.lua" },
+        "BossService":        { "$path": "src/ServerScriptService/Services/BossService.lua" },
+        "LeaderboardService": { "$path": "src/ServerScriptService/Services/LeaderboardService.lua" }
       }
     },
 
@@ -25,13 +28,14 @@
       "GameConfig": { "$path": "src/ReplicatedStorage/GameConfig.lua" },
       "Modules": {
         "$className": "Folder",
-        "GameState":     { "$path": "src/ReplicatedStorage/Modules/GameState.lua" },
-        "Signal":        { "$path": "src/ReplicatedStorage/Modules/Signal.lua" },
-        "PetData":       { "$path": "src/ReplicatedStorage/Modules/PetData.lua" },
-        "EggData":       { "$path": "src/ReplicatedStorage/Modules/EggData.lua" },
-        "TerritoryData": { "$path": "src/ReplicatedStorage/Modules/TerritoryData.lua" },
-        "QuestData":     { "$path": "src/ReplicatedStorage/Modules/QuestData.lua" },
-        "BossData":      { "$path": "src/ReplicatedStorage/Modules/BossData.lua" }
+        "GameState":       { "$path": "src/ReplicatedStorage/Modules/GameState.lua" },
+        "Signal":          { "$path": "src/ReplicatedStorage/Modules/Signal.lua" },
+        "PetData":         { "$path": "src/ReplicatedStorage/Modules/PetData.lua" },
+        "EggData":         { "$path": "src/ReplicatedStorage/Modules/EggData.lua" },
+        "TerritoryData":   { "$path": "src/ReplicatedStorage/Modules/TerritoryData.lua" },
+        "QuestData":       { "$path": "src/ReplicatedStorage/Modules/QuestData.lua" },
+        "BossData":        { "$path": "src/ReplicatedStorage/Modules/BossData.lua" },
+        "AchievementData": { "$path": "src/ReplicatedStorage/Modules/AchievementData.lua" }
       }
     },
 
@@ -46,14 +50,16 @@
 
     "StarterGui": {
       "$className": "StarterGui",
-      "MainHud":     { "$className": "Folder", "MainHudController":  { "$path": "src/StarterGui/MainHud/MainHudController.client.lua" } },
-      "EggShop":     { "$className": "Folder", "EggShopController":  { "$path": "src/StarterGui/EggShop/EggShopController.client.lua" } },
-      "Inventory":   { "$className": "Folder", "InventoryController":{ "$path": "src/StarterGui/Inventory/InventoryController.client.lua" } },
-      "TradingPost": { "$className": "Folder", "TradingController":  { "$path": "src/StarterGui/TradingPost/TradingController.client.lua" } },
-      "DailySpin":   { "$className": "Folder", "DailySpinController":{ "$path": "src/StarterGui/DailySpin/DailySpinController.client.lua" } },
-      "Rebirth":     { "$className": "Folder", "RebirthController":  { "$path": "src/StarterGui/Rebirth/RebirthController.client.lua" } },
-      "Boss":        { "$className": "Folder", "BossController":     { "$path": "src/StarterGui/Boss/BossController.client.lua" } },
-      "Quests":      { "$className": "Folder", "QuestsController":   { "$path": "src/StarterGui/Quests/QuestsController.client.lua" } }
+      "MainHud":       { "$className": "Folder", "MainHudController":    { "$path": "src/StarterGui/MainHud/MainHudController.client.lua" } },
+      "EggShop":       { "$className": "Folder", "EggShopController":    { "$path": "src/StarterGui/EggShop/EggShopController.client.lua" } },
+      "Inventory":     { "$className": "Folder", "InventoryController":  { "$path": "src/StarterGui/Inventory/InventoryController.client.lua" } },
+      "TradingPost":   { "$className": "Folder", "TradingController":    { "$path": "src/StarterGui/TradingPost/TradingController.client.lua" } },
+      "DailySpin":     { "$className": "Folder", "DailySpinController":  { "$path": "src/StarterGui/DailySpin/DailySpinController.client.lua" } },
+      "Rebirth":       { "$className": "Folder", "RebirthController":    { "$path": "src/StarterGui/Rebirth/RebirthController.client.lua" } },
+      "Boss":          { "$className": "Folder", "BossController":       { "$path": "src/StarterGui/Boss/BossController.client.lua" } },
+      "Quests":        { "$className": "Folder", "QuestsController":     { "$path": "src/StarterGui/Quests/QuestsController.client.lua" } },
+      "Achievements":  { "$className": "Folder", "AchievementsController":{ "$path": "src/StarterGui/Achievements/AchievementsController.client.lua" } },
+      "Leaderboard":   { "$className": "Folder", "LeaderboardController":{ "$path": "src/StarterGui/Leaderboard/LeaderboardController.client.lua" } }
     }
   }
 }

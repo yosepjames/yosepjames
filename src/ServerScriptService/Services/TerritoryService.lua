@@ -7,7 +7,9 @@ local GameConfig    = require(ReplicatedStorage:WaitForChild("GameConfig"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
-local DataService  -- injected
+local DataService        -- injected
+local QuestService       -- injected
+local AchievementService -- injected
 
 -- Runtime state
 -- territoryState[id] = { owner = userId | nil, progress = { [userId] = seconds } }
@@ -77,10 +79,9 @@ local function captureTick()
 				state.progress[userId] = (state.progress[userId] or 0) + 1
 
 				if state.progress[userId] >= tdata.captureTime then
-					-- Capture!
-					state.owner = userId
+					state.owner    = userId
 					state.progress = {}
-					changed = true
+					changed        = true
 
 					local player = Players:GetPlayerByUserId(userId)
 					if player then
@@ -88,6 +89,13 @@ local function captureTick()
 							text  = "You captured " .. tdata.name .. "! +" .. tdata.coinBonusPercent .. "% coins!",
 							color = tdata.color,
 						})
+						-- Advance quest + achievement stats
+						local data = DataService.Get(player)
+						if data then
+							data.stats.territoriesCaptured = (data.stats.territoriesCaptured or 0) + 1
+						end
+						if QuestService       then QuestService.Advance(player, "territoriesCaptured", 1) end
+						if AchievementService then AchievementService.Check(player) end
 					end
 				end
 			end
@@ -151,8 +159,10 @@ end)
 
 -- ── Init ──────────────────────────────────────────────────────────────────────
 
-function TerritoryService.Init(ds)
-	DataService = ds
+function TerritoryService.Init(ds, qs, as)
+	DataService        = ds
+	QuestService       = qs
+	AchievementService = as
 
 	remotes.EnterZone.OnServerEvent:Connect(handleEnterZone)
 	remotes.LeaveZone.OnServerEvent:Connect(handleLeaveZone)

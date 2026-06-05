@@ -7,7 +7,8 @@ local PetData    = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChil
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
 
 local remotes    = ReplicatedStorage:WaitForChild("Remotes")
-local DataService -- injected
+local DataService        -- injected
+local AchievementService -- injected
 
 -- Runtime boss state
 local bossState = {
@@ -74,6 +75,10 @@ local function distributeRewards()
 		-- Lucky egg bonus: roll per contributor based on their damage share
 		local luckRoll = math.random()
 		local data = DataService.Get(player)
+		if data then
+			data.stats.bossKills = (data.stats.bossKills or 0) + 1
+			if AchievementService then AchievementService.Check(player) end
+		end
 		if data and luckRoll < boss.luckyEggChance then
 			data.luckTokens = (data.luckTokens or 0) + 1
 			remotes.LuckTokenUpdate:FireClient(player, data.luckTokens)
@@ -167,8 +172,9 @@ end
 
 -- ── Main loop ─────────────────────────────────────────────────────────────────
 
-function BossService.Init(ds)
-	DataService = ds
+function BossService.Init(ds, as)
+	DataService        = ds
+	AchievementService = as
 
 	remotes.AttackBoss.OnServerEvent:Connect(handleAttackBoss)
 

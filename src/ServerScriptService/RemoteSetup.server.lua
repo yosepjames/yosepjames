@@ -67,3 +67,16 @@ event("QuestUpdate")
 fn   ("GetBossState")
 event("AttackBoss")
 event("BossUpdate")
+
+-- Achievements & Titles
+fn   ("GetAchievements")
+event("AchievementsUnlocked")  -- server → client: array of new achievements
+event("PlayerTitleUpdate")     -- server → all clients: { userId, title, titleColor }
+
+-- Leaderboard
+fn   ("GetLeaderboard")
+event("LeaderboardUpdate")
+
+-- Gamepasses
+fn   ("GetPassInfo")
+event("PassBenefitsUpdate")    -- server → client: benefits table

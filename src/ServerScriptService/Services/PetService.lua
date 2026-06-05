@@ -7,10 +7,12 @@ local PetData    = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChil
 local EggData    = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EggData"))
 
 local remotes    = ReplicatedStorage:WaitForChild("Remotes")
-local DataService     -- injected
-local DailySpinService -- injected (for luck check)
-local QuestService    -- injected
-local RebirthService  -- injected
+local DataService        -- injected
+local DailySpinService   -- injected
+local QuestService       -- injected
+local RebirthService     -- injected
+local AchievementService -- injected
+local GamepassService    -- injected
 
 local PetService = {}
 
@@ -31,7 +33,27 @@ local function rollShiny(player)
 	if DailySpinService and DailySpinService.HasActiveLuck(player) then
 		chance = GameConfig.SHINY_LUCK_CHANCE
 	end
-	return math.random(1, 100) <= chance
+	-- Gamepass: permanent 2× luck
+	if GamepassService and GamepassService.HasLuckBoost(player) then
+		chance = chance * 2
+	end
+	return math.random(1, 100) <= math.min(chance, 100)
+end
+
+-- XP needed to reach level N+1 (lvl 1→2 = 100, 2→3 = 283, ...)
+local function xpForLevel(level)
+	return math.floor(100 * (level ^ 1.5))
+end
+
+local function tryLevelUp(entry, petInfo)
+	if entry.level >= 10 then return false end
+	local needed = xpForLevel(entry.level)
+	if entry.xp >= needed then
+		entry.xp    = entry.xp - needed
+		entry.level = entry.level + 1
+		return true
+	end
+	return false
 end
 
 -- ── Egg Opening ───────────────────────────────────────────────────────────────
@@ -72,9 +94,17 @@ local function handleOpenEgg(player, eggId)
 	end
 
 	data.stats.eggsOpened += 1
-	if QuestService then QuestService.Advance(player, "eggsOpened", 1) end
-
+	if shiny then
+		data.stats.shiniesFound = (data.stats.shiniesFound or 0) + 1
+	end
 	local petInfo = PetData.GetPet(petId)
+	if petInfo and petInfo.rarity == "Mythic" then
+		data.stats.mythicsOwned = (data.stats.mythicsOwned or 0) + 1
+	end
+	data.stats.totalCoinsEarned = data.stats.totalCoinsEarned or 0
+
+	if QuestService       then QuestService.Advance(player, "eggsOpened", 1) end
+	if AchievementService then AchievementService.Check(player) end
 	local prefix  = shiny and "✨ SHINY " or ""
 	notify(player,
 		"You got a " .. prefix .. petInfo.rarity .. " " .. petInfo.name .. "!" .. (shiny and " (3× coins!)" or ""),
@@ -128,7 +158,8 @@ local function handleFusePets(player, uid1, uid2, uid3)
 
 	DataService.AddPet(player, resultEntry)
 	data.stats.fusionsDone += 1
-	if QuestService then QuestService.Advance(player, "fusionsDone", 1) end
+	if QuestService       then QuestService.Advance(player, "fusionsDone", 1) end
+	if AchievementService then AchievementService.Check(player) end
 
 	local prefix = resultShiny and "✨ SHINY " or ""
 	notify(player,
@@ -217,18 +248,48 @@ function PetService.TickCoins(player)
 
 	if final > 0 then
 		DataService.AdjustCoins(player, final)
-		data.stats.coinsFromPets += final
-		if QuestService then QuestService.Advance(player, "coinsFromPets", final) end
+		data.stats.coinsFromPets    = (data.stats.coinsFromPets or 0) + final
+		data.stats.totalCoinsEarned = (data.stats.totalCoinsEarned or 0) + final
+		if QuestService       then QuestService.Advance(player, "coinsFromPets", final) end
+		if AchievementService then AchievementService.Check(player) end
+	end
+
+	-- Pet XP gain: each equipped pet gains XP equal to coinPerMin per tick
+	local xpMult = (GamepassService and GamepassService.HasVIP(player)) and 2 or 1
+	local leveledUp = false
+	for _, uid in ipairs(data.equipped) do
+		for _, entry in ipairs(data.pets) do
+			if entry.uid == uid and entry.level < 10 then
+				local pet   = PetData.GetPet(entry.petId)
+				if pet then
+					entry.xp = (entry.xp or 0) + math.floor(pet.coinPerMin * xpMult)
+					if tryLevelUp(entry, pet) then
+						leveledUp = true
+						remotes.Notification:FireClient(player, {
+							text  = entry.shiny and "✨ " .. pet.name or pet.name
+								.. " reached level " .. entry.level .. "!",
+							color = PetData.GetRarityColor(pet.rarity),
+						})
+					end
+				end
+				break
+			end
+		end
+	end
+	if leveledUp then
+		remotes.GetInventory.OnServerInvoke(player)  -- clients re-fetch inventory
 	end
 end
 
 -- ── Init ─────────────────────────────────────────────────────────────────────
 
-function PetService.Init(ds, dss, qs, rs)
-	DataService      = ds
-	DailySpinService = dss
-	QuestService     = qs
-	RebirthService   = rs
+function PetService.Init(ds, dss, qs, rs, as, gps)
+	DataService        = ds
+	DailySpinService   = dss
+	QuestService       = qs
+	RebirthService     = rs
+	AchievementService = as
+	GamepassService    = gps
 
 	remotes.OpenEgg.OnServerInvoke      = handleOpenEgg
 	remotes.FusePets.OnServerInvoke     = handleFusePets
