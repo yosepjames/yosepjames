@@ -16,22 +16,14 @@ local GameConfig = require(ReplicatedStorage.GameConfig)
 
 -- Initialise with dependency injection
 PetService.Init(DataService, DailySpinService, QuestService, RebirthService)
-TerritoryService.Init(DataService)
-EconomyService.Init(DataService)
+TerritoryService.Init(DataService, QuestService)
+EconomyService.Init(DataService, QuestService)
 RebirthService.Init(DataService)
 QuestService.Init(DataService)
-BossService.Init(DataService)
+BossService.Init(DataService, QuestService)
 DailySpinService.Init(DataService)
 
--- Wire territory quest stat
-local origTerritoryService = TerritoryService
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
-
--- Hook territory capture event to advance quest
-remotes.TerritoryUpdated  -- already broadcasts; quest advance done inside TerritoryService
--- (Patch TerritoryService to call QuestService.Advance after capture)
--- We do a lightweight override by monitoring the remote on server side:
-remotes.BossUpdate  -- similarly driven inside BossService
 
 -- Push initial state to each player
 local function onPlayerAdded(player)

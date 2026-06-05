@@ -63,6 +63,16 @@ QuestData.Templates = {
 			{ target = 5, reward = { coins = 5000, gems = 15, luckTokens = 1 } },
 		},
 	},
+	{
+		id      = "defeat_bosses",
+		textFmt = "Defeat %d World Boss(es)",
+		stat    = "bossKills",
+		tiers   = {
+			{ target = 1, reward = { coins = 1000, gems = 5 } },
+			{ target = 3, reward = { coins = 4000, gems = 15 } },
+			{ target = 5, reward = { coins = 10000, gems = 30, luckTokens = 2 } },
+		},
+	},
 }
 
 QuestData.DAILY_COUNT  = 3    -- quests per day
