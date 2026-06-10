@@ -8,8 +8,9 @@ local remotes   = ReplicatedStorage:WaitForChild("Remotes")
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local listingsCache  = {}   -- listingId → listing
-local inventoryCache = {}   -- uid → entry (populated from PetAdded/PetRemoved)
+local listingsCache   = {}   -- listingId → listing
+local inventoryCache  = {}   -- uid → entry (populated from PetAdded/PetRemoved)
+local listingSearch   = ""
 
 -- ── Build ScreenGui ───────────────────────────────────────────────────────────
 local screen = Instance.new("ScreenGui")
@@ -69,9 +70,27 @@ leftTitle.TextScaled       = true
 leftTitle.Text             = "Active Listings"
 leftTitle.Parent           = leftPane
 
+-- Listings search box
+local listingSearchBox = Instance.new("TextBox")
+listingSearchBox.Size             = UDim2.new(1, -8, 0, 32)
+listingSearchBox.Position         = UDim2.new(0, 4, 0, 32)
+listingSearchBox.BackgroundColor3 = Color3.fromRGB(30, 35, 50)
+listingSearchBox.TextColor3       = Color3.new(1, 1, 1)
+listingSearchBox.Font             = Enum.Font.Gotham
+listingSearchBox.TextScaled       = true
+listingSearchBox.PlaceholderText  = "🔍 Search listings…"
+listingSearchBox.Text             = ""
+listingSearchBox.ClearTextOnFocus = false
+listingSearchBox.Parent           = leftPane
+Instance.new("UICorner", listingSearchBox).CornerRadius = UDim.new(0, 6)
+local listSearchStroke = Instance.new("UIStroke")
+listSearchStroke.Color     = Color3.fromRGB(60, 120, 180)
+listSearchStroke.Thickness = 1
+listSearchStroke.Parent    = listingSearchBox
+
 local listScroll = Instance.new("ScrollingFrame")
-listScroll.Size             = UDim2.new(1, -8, 1, -36)
-listScroll.Position         = UDim2.new(0, 4, 0, 32)
+listScroll.Size             = UDim2.new(1, -8, 1, -74)
+listScroll.Position         = UDim2.new(0, 4, 0, 70)
 listScroll.BackgroundTransparency = 1
 listScroll.ScrollBarThickness = 5
 listScroll.Parent           = leftPane
@@ -247,13 +266,35 @@ local function buildListingCard(listing)
 	listingCards[listing.id] = card
 end
 
+local function filterListings()
+	local query = listingSearch:lower()
+	for id, card in pairs(listingCards) do
+		if query == "" then
+			card.Visible = true
+		else
+			local listing = listingsCache[id]
+			local petInfo = listing and PetData.GetPet(listing.petId)
+			local name    = petInfo and petInfo.name:lower()     or ""
+			local seller  = listing and listing.sellerName:lower() or ""
+			card.Visible  = name:find(query, 1, true) ~= nil
+				or seller:find(query, 1, true) ~= nil
+		end
+	end
+end
+
 local function refreshListings()
 	for _, card in pairs(listingCards) do card:Destroy() end
 	listingCards = {}
 	for _, listing in pairs(listingsCache) do
 		buildListingCard(listing)
 	end
+	filterListings()
 end
+
+listingSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	listingSearch = listingSearchBox.Text
+	filterListings()
+end)
 
 -- ── Remote listeners ──────────────────────────────────────────────────────────
 remotes.PetAdded.OnClientEvent:Connect(function(entry)

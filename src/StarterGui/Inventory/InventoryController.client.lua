@@ -12,6 +12,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local inventoryCache  = {}   -- uid → entry
 local selectedForFuse = {}   -- up to 3 uids
 local equippedCache   = {}
+local searchText      = ""
 
 -- ── Build ScreenGui ───────────────────────────────────────────────────────────
 local screen = Instance.new("ScreenGui")
@@ -54,6 +55,24 @@ closeBtn.Parent           = panel
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
 closeBtn.MouseButton1Click:Connect(function() screen.Enabled = false end)
 
+-- Search / filter input
+local searchBox = Instance.new("TextBox")
+searchBox.Size             = UDim2.new(1, -20, 0, 36)
+searchBox.Position         = UDim2.new(0, 10, 0, 54)
+searchBox.BackgroundColor3 = Color3.fromRGB(35, 30, 55)
+searchBox.TextColor3       = Color3.new(1, 1, 1)
+searchBox.Font             = Enum.Font.Gotham
+searchBox.TextScaled       = true
+searchBox.PlaceholderText  = "🔍 Search by name or rarity…"
+searchBox.Text             = ""
+searchBox.ClearTextOnFocus = false
+searchBox.Parent           = panel
+Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
+local searchStroke = Instance.new("UIStroke")
+searchStroke.Color     = Color3.fromRGB(100, 80, 160)
+searchStroke.Thickness = 1
+searchStroke.Parent    = searchBox
+
 -- Fusion status bar
 local fuseBar = Instance.new("Frame")
 fuseBar.Size             = UDim2.new(1, -20, 0, 44)
@@ -85,8 +104,8 @@ Instance.new("UICorner", fuseBtn).CornerRadius = UDim.new(0, 6)
 
 -- Pet grid
 local petScroll = Instance.new("ScrollingFrame")
-petScroll.Size             = UDim2.new(1, -20, 1, -108)
-petScroll.Position         = UDim2.new(0, 10, 0, 55)
+petScroll.Size             = UDim2.new(1, -20, 1, -152)
+petScroll.Position         = UDim2.new(0, 10, 0, 98)
 petScroll.BackgroundTransparency = 1
 petScroll.ScrollBarThickness = 6
 petScroll.Parent           = panel
@@ -227,13 +246,35 @@ local function buildCard(entry)
 	petCards[entry.uid] = card
 end
 
+local function filterCards()
+	local query = searchText:lower()
+	for uid, card in pairs(petCards) do
+		if query == "" then
+			card.Visible = true
+		else
+			local entry   = inventoryCache[uid]
+			local petInfo = entry and PetData.GetPet(entry.petId)
+			local name    = petInfo and petInfo.name:lower()   or ""
+			local rarity  = petInfo and petInfo.rarity:lower() or ""
+			card.Visible  = name:find(query, 1, true) ~= nil
+				or rarity:find(query, 1, true) ~= nil
+		end
+	end
+end
+
 local function refreshGrid()
 	for _, card in pairs(petCards) do card:Destroy() end
 	petCards = {}
 	for _, entry in pairs(inventoryCache) do
 		buildCard(entry)
 	end
+	filterCards()
 end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	searchText = searchBox.Text
+	filterCards()
+end)
 
 -- Fuse button
 fuseBtn.MouseButton1Click:Connect(function()
